@@ -1,7 +1,8 @@
+##
 using ITensors
 using ColorSchemes
 ##
-include("latticemodels.jl")
+include("../latticemodels.jl")
 
 ##
 Ny = 6
@@ -14,7 +15,7 @@ sites = siteinds("S=1/2", N)
 # Obtain a LatticeModel2D struct
 # which defines a lattice
 latt = square_lattice_wjz(Nx, Ny; yperiodic = false)
-
+op
 # Define the Ising spin Hamiltonian on this lattice
 ampo = AutoMPO()
 for b in latt.locterms
