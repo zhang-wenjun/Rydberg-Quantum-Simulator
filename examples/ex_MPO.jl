@@ -8,8 +8,7 @@ using ITensors
 # and a vector of `OpTerm` struct, which is a vector of `SiteOp`
 # Each `SiteOp` instance contains a string `name` specifying 
 # the operator, and a `site` specifying the site where the operator acts.
-println("==============================")
-N = 2
+N = 100
 ampo = AutoMPO()
 for j = 1:N-1
   # This is equivalent to

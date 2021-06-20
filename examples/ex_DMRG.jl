@@ -1,28 +1,72 @@
-using ITensors
-using Plots
+# `PH` 
+# the projected Hamiltonian
+# used to keep track of the tensor network contraction
+# for local effective Hamiltonian
 
-N = 10
-sites = siteinds("S=1/2", N)
-ampo = AutoMPO()
-for j = 1:N-1
-    ampo .+= "Sz",j,"Sz",j+1
+# `checkdone!`
+# if it has reached minimum number of sweeps specified, 
+# and the energy difference between two sweeps is lower 
+# than the tolerance specified, then tells the program
+# no more sweeps are needed by returning true
+
+# `sweepnext(N)` 
+# gives an iterable, equivalent to local sites 
+# of (1,2), (2,3), ..., (N-1,N), (N-1, N), ..., (2,3), (1,2)
+# That is, going to right and then back left is called a sweep
+# ha == 1 means it's going to right, 
+# which corresponds to ortho == "left", 
+# meaning the updated local tensor should be in left-canonical form
+# ha == 2 means it's going to left, 
+# which corresponds to ortho == "right", 
+# meaning the updated local tensor should be in left-canonical form
+# b == 1 and ha == 2 together mean the sweep is over
+
+psi = copy(psi0)
+N = length(psi)
+orthogonalize!(psi,1)
+position!(PH, psi, 1)
+energy = 0.0
+for sw=1:nsweep(sweeps)
+    maxtruncerr = 0.0
+    for (b, ha) in sweepnext(N)
+        # solve local eigen-problem
+        position!(PH, psi, b)
+        phi = psi[b] * psi[b+1]
+        vals, vecs = eigsolve(PH, phi, 1, eigsolve_which_eigenvalue;
+                            ishermitian = ishermitian,
+                            tol = eigsolve_tol,
+                            krylovdim = eigsolve_krylovdim,
+                            maxiter = eigsolve_maxiter)
+        energy, phi = vals[1], vecs[1]
+        #?
+        ortho = ha == 1 ? "left" : "right"
+        # update local tensors and bonds
+        spec = replacebond!(psi, b, phi; maxdim = maxdim(sweeps, sw),
+                                       mindim = mindim(sweeps, sw),
+                                       cutoff = cutoff(sweeps, sw),
+                                       eigen_perturbation = drho,
+                                       ortho = ortho,
+                                       normalize = true,
+                                       which_decomp = which_decomp,
+                                       svd_alg = svd_alg)
+
+        # truncation error
+        maxtruncerr = max(maxtruncerr,spec.truncerr)
+
+        sweep_is_done = (b==1 && ha==2)
+        measure!(obs; energy=energy,
+                        psi=psi,
+                        bond = b,
+                        sweep = sw,
+                        half_sweep = ha,
+                        spec=spec,
+                        outputlevel=outputlevel,
+                        sweep_is_done=sweep_is_done)
+    end
+    isdone = checkdone!(obs;energy=energy,
+                            psi=psi,
+                            sweep=sw,
+                            outputlevel=outputlevel) 
+
+    isdone && break
 end
-H = MPO(ampo,sites)
-
-sweeps = Sweeps(10) # number of sweeps is 5
-maxdim!(sweeps,10,20,100,100,200) # gradually increase states kept
-cutoff!(sweeps,1E-10) # desired truncation error
-
-psi0 = randomMPS(sites, 2)
-
-energy, psi = dmrg(H,psi0,sweeps)
-
-function meas_Sz(psi, n)
-    psi = orthogonalize(psi,n)
-    sn = siteind(psi, n)
-    Sz = scalar(dag(prime(psi[n],"Site"))*op("Sz",sn)*psi[n])
-    return real(Sz)
-end
-
-Sz_list = [meas_Sz(psi, n) for n = 1:N]
-plot(1:N, Sz_list)
