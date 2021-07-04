@@ -45,7 +45,7 @@ function ed_evol(H::MPO, psi0::MPS,
     # println("ttot=$ttot, tau=$tau")
     # println("Get evolution operator")
     evo = exp(-1im*tau*prod(H))
-    Nt = Int(ceil(ttot/tau)) + 1
+    Nt = Int(ceil(ttot/tau))
     psi_t = Vector{MPS}(undef, Nt+1)
     psi_t[1] = copy(psi0)
     for n = 1:Nt
