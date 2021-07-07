@@ -192,7 +192,8 @@ function plot(latt::LatticeModel2D,
           linetype = lt,
           linecolor = :grey,
           label = "",
-          aspect_ratio = :equal)
+          aspect_ratio = :equal;
+          kwargs...)
     return p
 end
 
